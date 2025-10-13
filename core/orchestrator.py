@@ -5,6 +5,7 @@ from typing import Dict, Optional
 from pathlib import Path
 from core.llm_factory import LLMFactory
 from core.knowledge_store import SimpleKnowledgeStore
+from core.hil_controller import HILController, create_hil_controller
 from agents.coordinator import CoordinatorAgent
 from agents.trend_scout import TrendScoutAgent
 from agents.historian import HistorianAgent
@@ -24,6 +25,9 @@ class ResearchOrchestrator:
 
         # Setup logging
         self._setup_logging()
+
+        # Initialize HIL controller
+        self.hil_controller = create_hil_controller(self.llm_factory.config)
 
         # Initialize agents with provider-specific LLMs
         self.agents = self._initialize_agents()
@@ -105,7 +109,8 @@ class ResearchOrchestrator:
         agents["coordinator"] = CoordinatorAgent(
             llm=coordinator_llm,
             knowledge_store=self.knowledge_store,
-            agents=agents
+            agents=agents,
+            hil_controller=self.hil_controller
         )
 
         print("\n✓ All agents initialized successfully\n")

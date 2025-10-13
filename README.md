@@ -37,6 +37,7 @@ graph TB
 
 - **Multi-Agent Architecture**: Specialized agents for different research tasks
 - **Multi-Provider LLM Support**: Ollama, OpenAI, Claude, and Perplexity
+- **Human-in-the-Loop (HIL)**: Interactive approval checkpoints for quality control
 - **Intelligent Web Search**: Built-in web search with citation tracking
 - **Comprehensive Research**: White papers, news, books, and historical analysis
 - **Automatic Report Generation**: Markdown reports with reference tables
@@ -110,6 +111,9 @@ OLLAMA_BASE_URL=http://localhost:11434
 # Run research on a topic
 python -m cli.main research "Multi-Agent AI Systems 2025"
 
+# Enable Human-in-the-Loop mode for interactive review
+python -m cli.main research "Multi-Agent AI Systems 2025" --hil
+
 # Show current configuration
 python -m cli.main show-config
 
@@ -128,11 +132,13 @@ Research Command
 python -m cli.main research [OPTIONS] TOPIC
 
 Options:
-  --config, -c PATH    Path to config file [default: config/config.yaml]
-  --output, -o PATH    Output file path (overrides config)
-  --provider TEXT      Override default provider for all agents
-  --model TEXT         Override default model
-  --help              Show this message and exit
+  --config, -c PATH       Path to config file [default: config/config.yaml]
+  --output, -o PATH       Output file path (overrides config)
+  --provider TEXT         Override default provider for all agents
+  --model TEXT            Override default model
+  --hil / --no-hil        Enable Human-in-the-Loop mode [default: False]
+  --auto-approve          Auto-approve all checkpoints (for testing)
+  --help                  Show this message and exit
 ```
 
 ### Examples
@@ -140,6 +146,12 @@ Options:
 ```bash
 # Basic research
 python -m cli.main research "Quantum Computing Trends"
+
+# Enable Human-in-the-Loop for interactive review
+python -m cli.main research "Quantum Computing Trends" --hil
+
+# HIL with auto-approve for testing/CI
+python -m cli.main research "Quantum Computing Trends" --hil --auto-approve
 
 # Custom output location
 python -m cli.main research "AI Ethics" --output reports/ai_ethics.md
@@ -194,7 +206,100 @@ research:
     recency_years: 3
 
   # ... other research parameters
+
+hil:
+  enabled: false              # Enable HIL mode (can be overridden by CLI)
+  auto_approve: false         # Auto-approve all checkpoints (testing only)
+  checkpoints:
+    trend_review:
+      enabled: true
+      timeout: 300            # Seconds before auto-approve (0 = no timeout)
+    research_review:
+      enabled: true
+      timeout: 600
+    report_review:
+      enabled: true
+      timeout: 0
 ```
+
+## 🤝 Human-in-the-Loop (HIL) Mode
+
+Cardinal Biggles supports interactive human oversight through Human-in-the-Loop checkpoints, allowing you to review and approve results at key stages of the research workflow.
+
+### What is HIL?
+
+HIL mode pauses the workflow at strategic checkpoints to let you:
+- **Review** agent outputs before proceeding
+- **Approve** to continue with current results
+- **Edit** to modify results (basic implementation)
+- **Regenerate** to re-run a phase with different parameters
+- **Skip** to proceed without regeneration
+- **Quit** to exit early and save partial results
+
+### Checkpoints
+
+**1. Trend Review** - After initial trend identification
+- Review identified trends before committing to deeper research
+- Option to regenerate with different focus
+
+**2. Research Review** - After all research phases complete
+- Review findings from Historical, Scholar, Journalist, and Bibliophile agents
+- Examine sample outputs and URL counts
+
+**3. Report Review** - Before final report is saved
+- Preview the generated report
+- Option to regenerate with adjustments
+
+### Using HIL Mode
+
+```bash
+# Enable HIL mode
+python -m cli.main research "AI Trends" --hil
+
+# Auto-approve for testing/CI pipelines
+python -m cli.main research "AI Trends" --hil --auto-approve
+
+# Configure in config.yaml
+hil:
+  enabled: true
+  checkpoints:
+    trend_review:
+      enabled: true
+      timeout: 300  # Auto-approve after 5 minutes if no response
+```
+
+### Checkpoint Actions
+
+At each checkpoint, you'll see a prompt like this:
+
+```
+┌─────────────────────────────────────┐
+│ Checkpoint: Trend Scouting          │
+│ Type: trend_review                  │
+└─────────────────────────────────────┘
+
+Identified Trends:
+[Preview of trend analysis...]
+
+Available Actions:
+  [A] Approve & Continue
+  [E] Edit Data
+  [R] Regenerate
+  [S] Skip to Next Phase
+  [Q] Quit
+
+Choose action [A]: _
+```
+
+### Use Cases
+
+**Quality Control**: Review LLM outputs for accuracy and relevance before expensive research phases
+
+**Cost Management**: Stop workflows early if initial results don't meet expectations
+
+**Iterative Refinement**: Regenerate specific phases without re-running entire workflow
+
+**Learning**: Understand what each agent produces and how the system works
 
 ### Per-Agent Configuration
 
@@ -290,7 +395,8 @@ cardinal-biggles/
 ├── core/
 │   ├── orchestrator.py         # Main orchestrator
 │   ├── llm_factory.py          # LLM provider factory
-│   └── knowledge_store.py      # Knowledge management
+│   ├── knowledge_store.py      # Knowledge management
+│   └── hil_controller.py       # Human-in-the-Loop controller
 ├── tools/
 │   ├── web_search.py           # Web search tool
 │   └── url_tracker.py          # URL tracking/validation
@@ -301,6 +407,7 @@ cardinal-biggles/
 ├── tests/
 │   ├── test_agents.py
 │   ├── test_llm_factory.py
+│   ├── test_hil_controller.py  # HIL tests
 │   └── test_tools.py
 ├── requirements.txt
 ├── .env.example
@@ -474,7 +581,7 @@ Email: <support@cardinalbiggles.example.com>
 - [ ] Slack/Teams/Discord integrations
 - [ ] n8n workflow support
 - [ ] Real-time collaborative research
-- [ ] Human-in-the-loop review
+- [x] Human-in-the-loop review (✅ Implemented v0.2.0)
 - [ ] Advanced cost tracking and budgets
 - [ ] Multi-language support
 - [ ] Custom agent marketplace

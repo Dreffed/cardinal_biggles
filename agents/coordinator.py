@@ -1,11 +1,11 @@
 from agents.base_agent import ResearchAgent
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import asyncio
 
 class CoordinatorAgent(ResearchAgent):
     """Coordinator agent that orchestrates the research workflow"""
 
-    def __init__(self, llm, knowledge_store, agents: Dict[str, ResearchAgent]):
+    def __init__(self, llm, knowledge_store, agents: Dict[str, ResearchAgent], hil_controller=None):
         super().__init__(
             agent_id="coordinator",
             role="coordinator",
@@ -13,6 +13,7 @@ class CoordinatorAgent(ResearchAgent):
             knowledge_store=knowledge_store
         )
         self.agents = agents
+        self.hil_controller = hil_controller
 
     def get_system_prompt(self) -> str:
         return """You are a Coordinator Agent - responsible for orchestrating complex research workflows.
@@ -46,6 +47,29 @@ Your role is strategic coordination, not content research."""
         trend_result = await self.agents["trend_scout"].scout_trends(topic)
         results["trends"] = trend_result
         print(f"✓ Found trends. Analysis complete.\n")
+
+        # CHECKPOINT 1: Review Trends
+        if self.hil_controller:
+            from core.hil_controller import CheckpointType
+            checkpoint_result = await self.hil_controller.checkpoint(
+                CheckpointType.TREND_REVIEW,
+                trend_result,
+                "Trend Scouting"
+            )
+
+            if checkpoint_result.get("quit"):
+                results["status"] = "cancelled"
+                results["phase"] = "trend_review"
+                return results
+
+            if checkpoint_result.get("regenerate"):
+                print("🔄 Regenerating trends...")
+                trend_result = await self.agents["trend_scout"].scout_trends(topic)
+                results["trends"] = trend_result
+
+            # Use potentially edited data
+            trend_result = checkpoint_result["data"]
+            results["trends"] = trend_result
 
         # Extract top trend for deeper research
         top_trend = await self._extract_top_trend(trend_result)
@@ -86,11 +110,62 @@ Your role is strategic coordination, not content research."""
 
         print("✓ All research phases complete.\n")
 
+        # CHECKPOINT 2: Review Research
+        if self.hil_controller:
+            from core.hil_controller import CheckpointType
+            research_data = {
+                "history": history_result,
+                "white_papers": papers_result,
+                "news": news_result,
+                "books": books_result
+            }
+            checkpoint_result = await self.hil_controller.checkpoint(
+                CheckpointType.RESEARCH_REVIEW,
+                research_data,
+                "Research Phase"
+            )
+
+            if checkpoint_result.get("quit"):
+                results["status"] = "cancelled"
+                results["phase"] = "research_review"
+                return results
+
+            # Note: regeneration of research phases would require re-running all agents
+            # For now, we'll skip this capability and just use approved/edited data
+            research_data = checkpoint_result["data"]
+            results.update(research_data)
+
         # Phase 6: Report Generation
         print("📝 Phase 6: Generating comprehensive report...")
         report = await self.agents["reporter"].generate_report(results)
         results["final_report"] = report
         print("✓ Report generated.\n")
+
+        # CHECKPOINT 3: Review Report
+        if self.hil_controller:
+            from core.hil_controller import CheckpointType
+            checkpoint_result = await self.hil_controller.checkpoint(
+                CheckpointType.REPORT_REVIEW,
+                {"final_report": report},
+                "Report Generation"
+            )
+
+            if checkpoint_result.get("quit"):
+                results["status"] = "cancelled"
+                results["phase"] = "report_review"
+                return results
+
+            if checkpoint_result.get("regenerate"):
+                print("🔄 Regenerating report...")
+                report = await self.agents["reporter"].generate_report(results)
+                results["final_report"] = report
+
+            # Use potentially edited report
+            report_data = checkpoint_result["data"]
+            results["final_report"] = report_data.get("final_report", report)
+
+            # Add HIL summary to results
+            results["hil_summary"] = self.hil_controller.get_checkpoint_summary()
 
         return results
 

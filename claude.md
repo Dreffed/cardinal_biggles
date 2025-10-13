@@ -46,6 +46,186 @@ CLI Interface → ResearchOrchestrator → CoordinatorAgent → Specialized Agen
    - Document categorization and tagging
    - Export to Markdown and JSON
 
+4. **HILController** ([core/hil_controller.py](core/hil_controller.py))
+   - Human-in-the-Loop workflow management
+   - Interactive approval checkpoints
+   - User action handling (approve, edit, regenerate, skip, quit)
+   - Checkpoint history tracking
+
+---
+
+## Human-in-the-Loop (HIL) System
+
+Cardinal Biggles supports interactive human oversight through a Human-in-the-Loop system that allows users to review and approve results at key checkpoints during the research workflow.
+
+### HIL Architecture
+
+**Workflow with HIL Enabled:**
+```
+User Input → Phase 1: Trend Scouting
+           ↓
+         [CHECKPOINT: Review Trends] → Approve/Edit/Regenerate/Skip/Quit
+           ↓
+         Phases 2-5: Research (Parallel)
+           ↓
+         [CHECKPOINT: Review Research] → Approve/Edit/Regenerate/Skip/Quit
+           ↓
+         Phase 6: Report Generation
+           ↓
+         [CHECKPOINT: Review Report] → Approve/Edit/Regenerate/Skip/Quit
+           ↓
+         Final Output
+```
+
+### Checkpoint Types
+
+**1. Trend Review** (`CheckpointType.TREND_REVIEW`)
+- **When**: After Phase 1 (Trend Scouting)
+- **Purpose**: Validate identified trends before deeper research
+- **Data Shown**: Trend analysis results, URLs found
+- **Actions**: Approve, Edit, Regenerate, Skip, Quit
+
+**2. Research Review** (`CheckpointType.RESEARCH_REVIEW`)
+- **When**: After Phases 2-5 (Historical, Scholar, Journalist, Bibliophile)
+- **Purpose**: Review all gathered research before report generation
+- **Data Shown**: Summary table of all agent results, sample outputs, URL counts
+- **Actions**: Approve, Edit, Skip, Quit
+
+**3. Report Review** (`CheckpointType.REPORT_REVIEW`)
+- **When**: After Phase 6 (Report Generation)
+- **Purpose**: Final approval before saving report
+- **Data Shown**: Report preview (first 50 lines), statistics
+- **Actions**: Approve, Edit, Regenerate, Quit
+
+### User Actions
+
+| Action | Key | Description | Effect |
+|--------|-----|-------------|--------|
+| **Approve** | A | Continue to next phase | Proceeds with current data |
+| **Edit** | E | Modify results | Opens edit mode (basic implementation) |
+| **Regenerate** | R | Re-run the phase | Executes phase again with same parameters |
+| **Skip** | S | Skip to next phase | Continues without regeneration |
+| **Quit** | Q | Exit workflow | Saves partial results and exits |
+
+### Configuration
+
+**Enable HIL in config.yaml:**
+```yaml
+hil:
+  enabled: false              # Enable HIL mode
+  auto_approve: false         # Auto-approve all checkpoints (testing)
+
+  checkpoints:
+    trend_review:
+      enabled: true
+      timeout: 300            # Seconds before auto-approve (0 = no timeout)
+    research_review:
+      enabled: true
+      timeout: 600
+    report_review:
+      enabled: true
+      timeout: 0              # No timeout for final review
+
+  allow_editing: true
+  allow_regeneration: true
+  save_checkpoints: true
+  checkpoint_file: "./data/hil_checkpoints.json"
+```
+
+**Enable HIL via CLI:**
+```bash
+# Enable HIL mode
+python -m cli.main research "AI Trends" --hil
+
+# With auto-approve for testing
+python -m cli.main research "AI Trends" --hil --auto-approve
+```
+
+### Implementation Details
+
+**Key Classes:**
+- `HILController` ([core/hil_controller.py](core/hil_controller.py:34-277))
+- `CheckpointType` ([core/hil_controller.py](core/hil_controller.py:17-21))
+- `ApprovalAction` ([core/hil_controller.py](core/hil_controller.py:24-30))
+
+**Integration Points:**
+- **Orchestrator** ([core/orchestrator.py](core/orchestrator.py:30)): Initializes HIL controller
+- **Coordinator** ([agents/coordinator.py](agents/coordinator.py:8)): Accepts HIL controller, calls checkpoints
+- **CLI** ([cli/main.py](cli/main.py:24-25)): Provides `--hil` and `--auto-approve` flags
+
+**Checkpoint Usage:**
+```python
+# In coordinator workflow
+if self.hil_controller:
+    checkpoint_result = await self.hil_controller.checkpoint(
+        CheckpointType.TREND_REVIEW,
+        trend_result,
+        "Trend Scouting"
+    )
+
+    if checkpoint_result.get("quit"):
+        return {"status": "cancelled", "phase": "trend_review"}
+
+    if checkpoint_result.get("regenerate"):
+        trend_result = await self.agents["trend_scout"].scout_trends(topic)
+```
+
+### Checkpoint History
+
+The HIL controller tracks all checkpoint interactions:
+
+```python
+{
+    "total_checkpoints": 3,
+    "approvals": 2,
+    "edits": 0,
+    "regenerations": 1,
+    "history": [
+        {
+            "type": "trend_review",
+            "phase": "Trend Scouting",
+            "action": "approve",
+            "timestamp": "2025-01-13T10:30:00"
+        },
+        # ...
+    ]
+}
+```
+
+### Use Cases
+
+**1. Quality Control**
+- Review and validate LLM outputs before proceeding
+- Catch hallucinations or irrelevant content early
+- Ensure research stays on track
+
+**2. Cost Management**
+- Stop expensive research workflows early if initial results are poor
+- Regenerate only specific phases instead of entire workflow
+
+**3. Iterative Refinement**
+- Edit parameters or guidance between phases
+- Regenerate with different approaches
+
+**4. Learning and Debugging**
+- Understand what each agent produces
+- Identify where workflows need improvement
+
+### Testing
+
+HIL controller has comprehensive unit tests ([tests/test_hil_controller.py](tests/test_hil_controller.py)):
+```bash
+pytest tests/test_hil_controller.py -v
+```
+
+**Test Coverage:**
+- Controller initialization
+- Disabled/enabled modes
+- Auto-approve mode
+- All user actions (A/E/R/S/Q)
+- Checkpoint history tracking
+- All checkpoint types
+
 ---
 
 ## Agent Architecture
@@ -259,6 +439,20 @@ python -m cli.main research "Topic" [OPTIONS]
 - `--output, -o`: Output file path
 - `--provider`: Override default provider
 - `--model`: Override default model
+- `--hil / --no-hil`: Enable Human-in-the-Loop mode (default: False)
+- `--auto-approve`: Auto-approve all checkpoints for testing
+
+**Examples:**
+```bash
+# Standard research workflow
+python -m cli.main research "AI Trends 2025"
+
+# With Human-in-the-Loop enabled
+python -m cli.main research "AI Trends 2025" --hil
+
+# With auto-approve for testing
+python -m cli.main research "AI Trends 2025" --hil --auto-approve
+```
 
 #### Show Config
 ```bash

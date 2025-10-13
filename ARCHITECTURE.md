@@ -60,6 +60,13 @@ Cardinal Biggles is a multi-agent research orchestration system built on an even
 │  │  - Configuration management                        │    │
 │  │  - Fallback handling                               │    │
 │  └────────────────────────────────────────────────────┘    │
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │         HILController (v0.2.0)                     │    │
+│  │  - Human-in-the-Loop checkpoints                   │    │
+│  │  - Interactive approval workflow                   │    │
+│  │  - User action handling (A/E/R/S/Q)                │    │
+│  └────────────────────────────────────────────────────┘    │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
@@ -107,6 +114,7 @@ Cardinal Biggles is a multi-agent research orchestration system built on an even
 | **CLI** | User interaction, command parsing | Click, Rich |
 | **ResearchOrchestrator** | Agent coordination, workflow execution | LLMFactory, Agents |
 | **LLMFactory** | LLM instantiation, configuration | LangChain providers |
+| **HILController** | Human-in-the-Loop workflow management | Rich (UI), asyncio |
 | **Agents** | Specialized research tasks | LLMs, Tools, KnowledgeStore |
 | **WebSearchTool** | Web search across multiple backends | aiohttp, duckduckgo-search |
 | **URLTracker** | URL management, validation | aiohttp |
@@ -140,6 +148,11 @@ User Input
     │       │               ├─> LLM Analysis
     │       │               └─> Store Results
     │       │
+    │       ├─> [CHECKPOINT 1: Trend Review] (if HIL enabled)
+    │       │       ├─> Display trends to user
+    │       │       ├─> Wait for approval (A/E/R/S/Q)
+    │       │       └─> Process user action
+    │       │
     │       ├─> Phase 2-5: Research (Parallel)
     │       │       ├─> Historian Agent
     │       │       ├─> Scholar Agent
@@ -147,11 +160,21 @@ User Input
     │       │       └─> Bibliophile Agent
     │       │           (Each agent follows same pattern)
     │       │
-    │       └─> Phase 6: Report Generation (Sequential)
-    │               └─> Reporter Agent
-    │                       ├─> Aggregate Results
-    │                       ├─> Synthesize Findings
-    │                       └─> Generate Markdown
+    │       ├─> [CHECKPOINT 2: Research Review] (if HIL enabled)
+    │       │       ├─> Display research summary
+    │       │       ├─> Wait for approval
+    │       │       └─> Process user action
+    │       │
+    │       ├─> Phase 6: Report Generation (Sequential)
+    │       │       └─> Reporter Agent
+    │       │               ├─> Aggregate Results
+    │       │               ├─> Synthesize Findings
+    │       │               └─> Generate Markdown
+    │       │
+    │       └─> [CHECKPOINT 3: Report Review] (if HIL enabled)
+    │               ├─> Display report preview
+    │               ├─> Wait for approval
+    │               └─> Process user action
     │
     └─> Output
             ├─> Save Report File

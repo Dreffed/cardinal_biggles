@@ -1,5 +1,6 @@
 import click
 import asyncio
+from typing import Dict, Any, Optional
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -20,7 +21,9 @@ def cli():
 @click.option('--output', '-o', default=None, help='Output file path (overrides config)')
 @click.option('--provider', default=None, help='Override default provider for all agents')
 @click.option('--model', default=None, help='Override default model')
-def research(topic, config, output, provider, model):
+@click.option('--hil/--no-hil', default=False, help='Enable Human-in-the-Loop mode')
+@click.option('--auto-approve', is_flag=True, help='Auto-approve all checkpoints (for testing)')
+def research(topic, config, output, provider, model, hil, auto_approve):
     """Start a research workflow on a topic"""
 
     console.print(Panel.fit(
@@ -29,19 +32,59 @@ def research(topic, config, output, provider, model):
         border_style="blue"
     ))
 
+    # Display HIL status if enabled
+    if hil:
+        console.print(Panel.fit(
+            "[bold yellow]Human-in-the-Loop Mode ENABLED[/bold yellow]\n"
+            "You will be prompted to review results at key checkpoints.",
+            border_style="yellow"
+        ))
+        console.print()
+
+    # Load config and override HIL settings
+    try:
+        with open(config, 'r') as f:
+            config_dict = yaml.safe_load(f)
+    except FileNotFoundError:
+        console.print(f"[red]Config file not found: {config}[/red]")
+        console.print(f"[yellow]Creating default config at {config}...[/yellow]")
+        _create_default_config(config)
+        return
+    except Exception as e:
+        console.print(f"[red]Error loading config: {e}[/red]")
+        return
+
+    # Override HIL settings from CLI
+    if 'hil' not in config_dict:
+        config_dict['hil'] = {}
+
+    config_dict['hil']['enabled'] = hil
+    config_dict['hil']['auto_approve'] = auto_approve
+
+    # Save temporary config
+    import tempfile
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            yaml.dump(config_dict, f)
+            temp_config = f.name
+    except Exception as e:
+        console.print(f"[red]Error creating temp config: {e}[/red]")
+        return
+
     # Load and display config
     _display_config(config)
 
     # Initialize orchestrator
     try:
-        orchestrator = ResearchOrchestrator(config_path=config)
+        orchestrator = ResearchOrchestrator(config_path=temp_config)
     except FileNotFoundError as e:
         console.print(f"[red]Error: {e}[/red]")
-        console.print(f"[yellow]Creating default config at {config}...[/yellow]")
-        _create_default_config(config)
         return
     except Exception as e:
         console.print(f"[red]Error initializing orchestrator: {e}[/red]")
+        import os
+        if os.path.exists(temp_config):
+            os.remove(temp_config)
         return
 
     # Run research workflow
@@ -50,6 +93,23 @@ def research(topic, config, output, provider, model):
             results = asyncio.run(orchestrator.execute_workflow(topic))
     except Exception as e:
         console.print(f"[red]Error during research: {e}[/red]")
+        import os
+        if os.path.exists(temp_config):
+            os.remove(temp_config)
+        return
+    finally:
+        # Clean up temp config file
+        import os
+        if 'temp_config' in locals() and os.path.exists(temp_config):
+            try:
+                os.remove(temp_config)
+            except:
+                pass
+
+    # Check if workflow was cancelled
+    if results.get("status") == "cancelled":
+        console.print(f"\n[yellow]Workflow cancelled at: {results.get('phase', 'unknown')}[/yellow]")
+        console.print("[yellow]Partial results were saved to knowledge store.[/yellow]")
         return
 
     # Determine output path
@@ -73,6 +133,15 @@ def research(topic, config, output, provider, model):
 
     # Display summary stats
     _display_summary(results)
+
+    # Display HIL summary if applicable
+    if hil and "hil_summary" in results:
+        hil_summary = results["hil_summary"]
+        console.print(f"\n[bold cyan]HIL Checkpoint Summary:[/bold cyan]")
+        console.print(f"  Total Checkpoints: {hil_summary['total_checkpoints']}")
+        console.print(f"  Approvals: {hil_summary['approvals']}")
+        console.print(f"  Edits: {hil_summary['edits']}")
+        console.print(f"  Regenerations: {hil_summary['regenerations']}")
 
 @cli.command()
 @click.option('--config', '-c', default='config/config.yaml', help='Path to config file')
@@ -316,6 +385,25 @@ logging:
   file: "./logs/orchestrator.log"
   console: true
   track_costs: true
+
+# Human-in-the-Loop Configuration
+hil:
+  enabled: false
+  auto_approve: false
+  checkpoints:
+    trend_review:
+      enabled: true
+      timeout: 300
+    research_review:
+      enabled: true
+      timeout: 600
+    report_review:
+      enabled: true
+      timeout: 0
+  allow_editing: true
+  allow_regeneration: true
+  save_checkpoints: true
+  checkpoint_file: "./data/hil_checkpoints.json"
 """
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

@@ -145,6 +145,30 @@ logging:
   include_timestamps: true
   track_costs: true  # Track API costs
 
+# Human-in-the-Loop Configuration
+hil:
+  enabled: false              # Enable HIL mode (can be overridden by CLI flag)
+  auto_approve: false         # Auto-approve all checkpoints (testing only)
+
+  checkpoints:
+    trend_review:
+      enabled: true           # Review after trend scouting
+      timeout: 300            # Seconds before auto-approve (0 = no timeout)
+
+    research_review:
+      enabled: true           # Review after research phases
+      timeout: 600
+
+    report_review:
+      enabled: true           # Review final report
+      timeout: 0              # No timeout for final review
+
+  # Edit capabilities
+  allow_editing: true         # Allow users to edit results
+  allow_regeneration: true    # Allow regeneration requests
+  save_checkpoints: true      # Save checkpoint history to file
+  checkpoint_file: "./data/hil_checkpoints.json"
+
 # API Server (future)
 api:
   enabled: false
