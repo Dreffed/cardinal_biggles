@@ -1,18 +1,24 @@
+"""
+LLM Factory for Cardinal Biggles
+Multi-provider LLM creation with proper imports
+"""
+
 from typing import Optional, Dict, Any
 from enum import Enum
 import os
-from langchain_community.llms import Ollama
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_community.chat_models import ChatPerplexity
 import yaml
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class LLMProvider(Enum):
     OLLAMA = "ollama"
     OPENAI = "openai"
     CLAUDE = "claude"
     PERPLEXITY = "perplexity"
+
 
 class LLMFactory:
     """Factory for creating LLM instances with provider-specific configurations"""
@@ -54,7 +60,7 @@ class LLMFactory:
             if provider_name in providers:
                 api_key = providers[provider_name].get('api_key', '')
                 if api_key and api_key.startswith("${"):
-                    print(f"⚠️  Warning: {provider_name.upper()} API key not set in environment")
+                    logger.warning(f"⚠️  {provider_name.upper()} API key not set in environment")
 
     def create_llm(
         self,
@@ -91,59 +97,116 @@ class LLMFactory:
 
     def _create_ollama(self, model: str, temperature: float, config: Dict, **kwargs):
         """Create Ollama LLM instance"""
-        return Ollama(
-            model=model,
-            base_url=config['base_url'],
-            temperature=temperature,
-            timeout=config.get('timeout', 120),
-            **kwargs
-        )
+        try:
+            # Try new import first (LangChain 0.1.0+)
+            from langchain_ollama import ChatOllama
+
+            return ChatOllama(
+                model=model,
+                base_url=config['base_url'],
+                temperature=temperature,
+                timeout=config.get('timeout', 120),
+                **kwargs
+            )
+        except ImportError:
+            try:
+                # Fallback to community import
+                from langchain_community.chat_models import ChatOllama
+
+                return ChatOllama(
+                    model=model,
+                    base_url=config['base_url'],
+                    temperature=temperature,
+                    timeout=config.get('timeout', 120),
+                    **kwargs
+                )
+            except ImportError:
+                try:
+                    # Fallback to legacy import
+                    from langchain_community.llms import Ollama
+
+                    return Ollama(
+                        model=model,
+                        base_url=config['base_url'],
+                        temperature=temperature,
+                        timeout=config.get('timeout', 120),
+                        **kwargs
+                    )
+                except ImportError as e:
+                    raise ImportError(
+                        "Could not import Ollama. Please install: "
+                        "pip install langchain-ollama or pip install langchain-community"
+                    ) from e
 
     def _create_openai(self, model: str, temperature: float, config: Dict, **kwargs):
         """Create OpenAI LLM instance"""
-        return ChatOpenAI(
-            model=model,
-            api_key=config['api_key'],
-            temperature=temperature,
-            max_tokens=config.get('max_tokens', 4000),
-            timeout=config.get('timeout', 60),
-            **kwargs
-        )
+        try:
+            from langchain_openai import ChatOpenAI
+
+            return ChatOpenAI(
+                model=model,
+                api_key=config['api_key'],
+                temperature=temperature,
+                max_tokens=config.get('max_tokens', 4000),
+                timeout=config.get('timeout', 60),
+                **kwargs
+            )
+        except ImportError as e:
+            raise ImportError(
+                "Could not import ChatOpenAI. Please install: "
+                "pip install langchain-openai"
+            ) from e
 
     def _create_claude(self, model: str, temperature: float, config: Dict, **kwargs):
         """Create Claude LLM instance"""
-        return ChatAnthropic(
-            model=model,
-            anthropic_api_key=config['api_key'],
-            temperature=temperature,
-            max_tokens=config.get('max_tokens', 4000),
-            timeout=config.get('timeout', 60),
-            **kwargs
-        )
+        try:
+            from langchain_anthropic import ChatAnthropic
+
+            return ChatAnthropic(
+                model=model,
+                anthropic_api_key=config['api_key'],
+                temperature=temperature,
+                max_tokens=config.get('max_tokens', 4000),
+                timeout=config.get('timeout', 60),
+                **kwargs
+            )
+        except ImportError as e:
+            raise ImportError(
+                "Could not import ChatAnthropic. Please install: "
+                "pip install langchain-anthropic"
+            ) from e
 
     def _create_perplexity(self, model: str, temperature: float, config: Dict, **kwargs):
         """Create Perplexity LLM instance"""
-        # Perplexity-specific parameters
-        pplx_kwargs = {
-            'model': model,
-            'pplx_api_key': config['api_key'],
-            'temperature': temperature,
-            'timeout': config.get('timeout', 90),
-        }
+        try:
+            from langchain_community.chat_models import ChatPerplexity
 
-        # Add Perplexity-specific search parameters if available
-        if 'search_recency_filter' in config:
-            pplx_kwargs['search_recency_filter'] = config['search_recency_filter']
-        if 'search_domain_filter' in config:
-            pplx_kwargs['search_domain_filter'] = config['search_domain_filter']
-        if 'return_citations' in config:
-            pplx_kwargs['return_citations'] = config['return_citations']
-        if 'return_images' in config:
-            pplx_kwargs['return_images'] = config['return_images']
+            # Perplexity-specific parameters
+            pplx_kwargs = {
+                'model': model,
+                'pplx_api_key': config['api_key'],
+                'temperature': temperature,
+                'timeout': config.get('timeout', 90),
+            }
 
-        pplx_kwargs.update(kwargs)
+            # Add Perplexity-specific search parameters if available
+            if 'search_recency_filter' in config:
+                pplx_kwargs['search_recency_filter'] = config['search_recency_filter']
+            if 'search_domain_filter' in config:
+                pplx_kwargs['search_domain_filter'] = config['search_domain_filter']
+            if 'return_citations' in config:
+                pplx_kwargs['return_citations'] = config['return_citations']
+            if 'return_images' in config:
+                pplx_kwargs['return_images'] = config['return_images']
 
-        return ChatPerplexity(**pplx_kwargs)
+            pplx_kwargs.update(kwargs)
+
+            return ChatPerplexity(**pplx_kwargs)
+        except ImportError as e:
+            raise ImportError(
+                "Could not import ChatPerplexity. Please install: "
+                "pip install langchain-community"
+            ) from e
 
     def create_agent_llm(self, agent_name: str, **override_kwargs):
         """Create LLM for a specific agent using agent-specific config"""

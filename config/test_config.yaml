@@ -1,0 +1,18 @@
+
+llm:
+  default_provider: "ollama"
+  default_model: "llama3.1"
+
+  providers:
+    ollama:
+      base_url: "http://localhost:11434"
+      models:
+        standard: "llama3.1"
+      default_temperature: 0.1
+      timeout: 120
+
+agents:
+  test_agent:
+    provider: "ollama"
+    model: "llama3.1"
+    temperature: 0.1

@@ -1,4 +1,6 @@
 from agents.base_agent import ResearchAgent
+from tools.web_search import WebSearchTool, SearchQuery
+from tools.url_tracker import URLTracker
 from typing import Dict, Any, List
 
 class HistorianAgent(ResearchAgent):
