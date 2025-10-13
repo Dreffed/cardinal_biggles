@@ -1,10 +1,8 @@
-# Cardinal Biggles
-
 # Cardinal Biggles 🎩🔍
 
-**Multi-Agent Research Orchestration System with Multi-Provider LLM Support**
+## Multi-Agent Research Orchestration System with Multi-Provider LLM Support
 
-Cardinal Biggles is an advanced AI-powered research system that uses specialized agents to conduct comprehensive market research, analyze trends, and generate detailed reports with citations.
+*Cardinal Biggles is an advanced AI-powered research system that uses specialized agents to conduct comprehensive market research, analyze trends, and generate detailed reports with citations.*
 
 ## Overview
 
@@ -247,19 +245,21 @@ agents:
 Report Structure
 Generated reports include:
 
-Executive Summary - High-level overview
-Trend Analysis - Current market trends
-Historical Context - Evolution and background
-Academic Research - White papers and studies
-News Analysis - Recent articles and developments
-Books & Resources - Comprehensive literature
-Key Insights - Synthesized findings
-Recommendations - Actionable next steps
-Reference Tables - Organized by source type
+- **Executive Summary** - High-level overview
+- **Trend Analysis** - Current market trends
+- **Historical Context** - Evolution and background
+- **Academic Research** - White papers and studies
+- **News Analysis** - Recent articles and developments
+- **Books & Resources** - Comprehensive literature
+- **Key Insights** - Synthesized findings
+- **Recommendations** - Actionable next steps
+- **Reference Tables** - Organized by source type
 
-Reference Tables
+*Reference Tables*
 Each report includes detailed reference tables:
-markdown## White Papers & Academic Research
+
+```markdown
+## White Papers & Academic Research
 
 | Title | Authors | Year | Quality | URL | Relevance |
 |-------|---------|------|---------|-----|-----------|
@@ -270,6 +270,7 @@ markdown## White Papers & Academic Research
 | Headline | Source | Date | Credibility | URL | Impact |
 |----------|--------|------|-------------|-----|--------|
 | ... | ... | ... | ... | [...](url) | ... |
+```
 
 ## 🛠️ Development
 
@@ -304,6 +305,7 @@ cardinal-biggles/
 ├── requirements.txt
 ├── .env.example
 └── README.md
+```
 
 ## Running Tests
 
