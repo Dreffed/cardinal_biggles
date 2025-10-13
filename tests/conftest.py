@@ -304,6 +304,56 @@ async def base_agent(mock_llm, knowledge_store):
     return agent
 
 
+@pytest.fixture
+def mock_agent_llm():
+    """Mock LLM for agent testing with URL support"""
+    from unittest.mock import AsyncMock, Mock
+
+    llm = AsyncMock()
+    response = Mock()
+    response.content = "Mock LLM response"
+    llm.ainvoke = AsyncMock(return_value=response)
+    return llm
+
+
+@pytest.fixture
+def test_agent(mock_agent_llm, knowledge_store):
+    """Create a test agent instance for unit tests"""
+    from agents.base_agent import ResearchAgent
+
+    class ConcreteTestAgent(ResearchAgent):
+        def get_system_prompt(self) -> str:
+            return "Test agent for testing purposes"
+
+    return ConcreteTestAgent(
+        agent_id="test_agent",
+        role="tester",
+        llm=mock_agent_llm,
+        knowledge_store=knowledge_store
+    )
+
+
+@pytest.fixture
+async def populated_agent_store(knowledge_store):
+    """Knowledge store with agent-generated documents"""
+    from core.knowledge_store import DocumentType
+
+    await knowledge_store.add_document(
+        content="Agent research finding 1",
+        source="test_agent",
+        document_type=DocumentType.AGENT_OUTPUT,
+        tags=["test", "research"]
+    )
+    await knowledge_store.add_document(
+        content="Agent research finding 2",
+        source="test_agent",
+        document_type=DocumentType.AGENT_OUTPUT,
+        tags=["test", "analysis"]
+    )
+
+    return knowledge_store
+
+
 # ============================================================================
 # Markers and conditional skips
 # ============================================================================

@@ -3,6 +3,7 @@ from langchain.schema import HumanMessage, AIMessage, SystemMessage
 from abc import ABC, abstractmethod
 import asyncio
 from datetime import datetime
+from core.knowledge_store import DocumentType
 
 class ResearchAgent(ABC):
     """Base class for all research agents"""
@@ -63,7 +64,8 @@ class ResearchAgent(ABC):
         self.memory.append(result)
 
         # Store in knowledge base
-        await self._store_knowledge(result)
+        doc_id = await self._store_knowledge(result)
+        result["knowledge_doc_id"] = doc_id
 
         return result
 
@@ -83,14 +85,37 @@ class ResearchAgent(ABC):
         url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
         return re.findall(url_pattern, content)
 
-    async def _store_knowledge(self, result: Dict):
-        """Store research result in knowledge base"""
-        await self.knowledge_store.add_document(
+    async def _store_knowledge(self, result: Dict) -> str:
+        """
+        Store research result in knowledge base
+
+        Fixed: 2025-01-13 - Added missing source and document_type parameters
+        See: dev_plans/fix_store_knowledge_method.md
+
+        Args:
+            result: Dictionary containing task results with keys:
+                    - result: The actual content to store
+                    - agent_id: Source agent identifier
+                    - role: Agent role
+                    - timestamp: ISO format timestamp
+                    - urls: List of extracted URLs
+
+        Returns:
+            str: Document ID from knowledge store
+
+        Raises:
+            KeyError: If required keys missing from result dict
+        """
+        doc_id = await self.knowledge_store.add_document(
             content=result["result"],
+            source=self.agent_id,
+            document_type=DocumentType.AGENT_OUTPUT,
             metadata={
                 "agent_id": self.agent_id,
                 "role": self.role,
                 "timestamp": result["timestamp"],
                 "urls": result["urls"]
-            }
+            },
+            tags=[self.role, "research"]
         )
+        return doc_id
