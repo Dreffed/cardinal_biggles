@@ -1,0 +1,33 @@
+# Development and Testing Dependencies
+
+# Testing Framework
+pytest
+pytest-asyncio
+pytest-cov
+pytest-mock
+pytest-timeout
+pytest-xdist  # Parallel test execution
+
+# Mocking and Fixtures
+responses
+aioresponses
+faker
+
+# Code Quality
+black
+flake8
+pylint
+mypy
+isort
+
+# Coverage
+coverage[toml]
+
+# Documentation
+sphinx
+sphinx-rtd-theme
+
+# Type Checking
+types-PyYAML
+types-requests
+types-aiofiles
