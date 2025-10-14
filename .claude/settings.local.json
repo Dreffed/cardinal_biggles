@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python:*)",
       "Bash(pytest:*)",
-      "Bash(del test_config_temp.yaml)"
+      "Bash(del test_config_temp.yaml)",
+      "Bash(curl -s http://localhost:11434/api/tags)"
     ],
     "deny": [],
     "ask": []

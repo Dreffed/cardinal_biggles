@@ -38,15 +38,15 @@ Your role is strategic coordination, not content research."""
     async def execute_research_workflow(self, topic: str) -> Dict[str, Any]:
         """Execute the complete research workflow"""
 
-        print(f"\n🚀 Starting research workflow for: {topic}\n")
+        print(f"\nStarting research workflow for: {topic}\n")
 
         results = {}
 
         # Phase 1: Trend Scouting
-        print("📊 Phase 1: Scouting market trends...")
+        print("Phase 1: Scouting market trends...")
         trend_result = await self.agents["trend_scout"].scout_trends(topic)
         results["trends"] = trend_result
-        print(f"✓ Found trends. Analysis complete.\n")
+        print(f"Found trends. Analysis complete.\n")
 
         # CHECKPOINT 1: Review Trends
         if self.hil_controller:
@@ -63,7 +63,7 @@ Your role is strategic coordination, not content research."""
                 return results
 
             if checkpoint_result.get("regenerate"):
-                print("🔄 Regenerating trends...")
+                print("Regenerating trends...")
                 trend_result = await self.agents["trend_scout"].scout_trends(topic)
                 results["trends"] = trend_result
 
@@ -75,25 +75,25 @@ Your role is strategic coordination, not content research."""
         top_trend = await self._extract_top_trend(trend_result)
 
         # Phase 2: Historical Research (parallel with Phase 3-5)
-        print(f"📜 Phase 2: Researching history of '{top_trend}'...")
+        print(f"Phase 2: Researching history of '{top_trend}'...")
         history_task = asyncio.create_task(
             self.agents["historian"].research_history(top_trend)
         )
 
         # Phase 3: White Paper Research
-        print(f"🎓 Phase 3: Finding white papers on '{top_trend}'...")
+        print(f"Phase 3: Finding white papers on '{top_trend}'...")
         papers_task = asyncio.create_task(
             self.agents["scholar"].research_whitepapers(top_trend, min_papers=5)
         )
 
         # Phase 4: News Research
-        print(f"📰 Phase 4: Analyzing recent news on '{top_trend}'...")
+        print(f"Phase 4: Analyzing recent news on '{top_trend}'...")
         news_task = asyncio.create_task(
             self.agents["journalist"].research_news(top_trend, days_back=90, min_articles=10)
         )
 
         # Phase 5: Book Research
-        print(f"📚 Phase 5: Finding books on '{top_trend}'...")
+        print(f"Phase 5: Finding books on '{top_trend}'...")
         books_task = asyncio.create_task(
             self.agents["bibliophile"].research_books(top_trend, min_books=5)
         )
@@ -108,7 +108,7 @@ Your role is strategic coordination, not content research."""
         results["news"] = news_result
         results["books"] = books_result
 
-        print("✓ All research phases complete.\n")
+        print("All research phases complete.\n")
 
         # CHECKPOINT 2: Review Research
         if self.hil_controller:
@@ -136,10 +136,10 @@ Your role is strategic coordination, not content research."""
             results.update(research_data)
 
         # Phase 6: Report Generation
-        print("📝 Phase 6: Generating comprehensive report...")
+        print("Phase 6: Generating comprehensive report...")
         report = await self.agents["reporter"].generate_report(results)
         results["final_report"] = report
-        print("✓ Report generated.\n")
+        print("Report generated.\n")
 
         # CHECKPOINT 3: Review Report
         if self.hil_controller:
@@ -156,7 +156,7 @@ Your role is strategic coordination, not content research."""
                 return results
 
             if checkpoint_result.get("regenerate"):
-                print("🔄 Regenerating report...")
+                print("Regenerating report...")
                 report = await self.agents["reporter"].generate_report(results)
                 results["final_report"] = report
 

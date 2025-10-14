@@ -60,7 +60,7 @@ class LLMFactory:
             if provider_name in providers:
                 api_key = providers[provider_name].get('api_key', '')
                 if api_key and api_key.startswith("${"):
-                    logger.warning(f"⚠️  {provider_name.upper()} API key not set in environment")
+                    logger.warning(f"WARNING: {provider_name.upper()} API key not set in environment")
 
     def create_llm(
         self,
@@ -241,12 +241,12 @@ class LLMFactory:
                 temperature=temperature,
                 **kwargs
             )
-            print(f"✓ Created {provider} LLM for {agent_name} (model: {model})")
+            print(f"Created {provider} LLM for {agent_name} (model: {model})")
             return llm
         except Exception as e:
             # Try fallback if configured
             if 'fallback_provider' in agent_config:
-                print(f"⚠️  {provider} failed for {agent_name}, using fallback: {agent_config['fallback_provider']}")
+                print(f"WARNING: {provider} failed for {agent_name}, using fallback: {agent_config['fallback_provider']}")
                 return self.create_llm(
                     provider=agent_config['fallback_provider'],
                     model=agent_config.get('fallback_model'),

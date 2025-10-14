@@ -1,3 +1,6 @@
 venv/
 
 *.pyc
+__pycache__/
+*/__pycache__/
+core/__pycache__/llm_factory.cpython-312.pyc

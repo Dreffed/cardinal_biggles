@@ -1,0 +1,131 @@
+# Cardinal Biggles - Local Ollama Configuration
+# For testing and development without API costs
+# All research is done using local Ollama models
+
+# Global LLM Configuration
+llm:
+  default_provider: "ollama"
+  default_model: "llama3.1:8b"
+
+  providers:
+    ollama:
+      base_url: "http://localhost:11434"
+      models:
+        fast: "llama3.1:8b"
+        standard: "llama3.1:8b"      # Use same model for consistency
+        powerful: "llama3.1:8b"       # Or use llama3.1 if available
+      default_temperature: 0.1
+      timeout: 300                    # Longer timeout for local models
+      max_retries: 3
+
+# Agent-Specific Configuration (All using Ollama)
+agents:
+  coordinator:
+    provider: "ollama"
+    model: "llama3.1:8b"
+    temperature: 0.1
+
+  trend_scout:
+    provider: "ollama"
+    model: "llama3.1:8b"
+    temperature: 0.2
+    # Note: No web search in local-only mode, relies on model knowledge
+
+  historian:
+    provider: "ollama"
+    model: "llama3.1:8b"
+    temperature: 0.1
+
+  scholar:
+    provider: "ollama"
+    model: "llama3.1:8b"
+    temperature: 0.1
+
+  journalist:
+    provider: "ollama"
+    model: "llama3.1:8b"
+    temperature: 0.2
+
+  bibliophile:
+    provider: "ollama"
+    model: "llama3.1:8b"
+    temperature: 0.1
+
+  reporter:
+    provider: "ollama"
+    model: "llama3.1:8b"              # Or llama3.1 for better quality
+    temperature: 0.2
+
+# Knowledge Store Configuration
+knowledge_store:
+  type: "simple"                      # Use simple in-memory store
+  persist_directory: "./data/knowledge_store_local"
+  collection_name: "local_research"
+  embedding_model: "all-MiniLM-L6-v2"
+
+# Research Configuration (Reduced for faster testing)
+research:
+  trend_scout:
+    max_trends: 3                     # Reduced from 5
+    timeframe: "2024-2025"
+
+  historian:
+    depth: "standard"                 # Reduced from comprehensive
+    min_sources: 3                    # Reduced from 5
+
+  scholar:
+    min_papers: 3                     # Reduced from 5
+    max_papers: 8                     # Reduced from 15
+    recency_years: 2
+
+  journalist:
+    min_articles: 5                   # Reduced from 10
+    max_articles: 12                  # Reduced from 25
+    days_back: 60                     # Reduced from 90
+
+  bibliophile:
+    min_books: 3                      # Reduced from 5
+    max_books: 6                      # Reduced from 10
+
+# Output Configuration
+output:
+  default_format: "markdown"
+  include_metadata: true
+  include_reference_tables: true
+  include_url_validation: false      # Disable for faster local testing
+  save_intermediate_results: true
+  output_directory: "./reports/local"
+
+# Logging
+logging:
+  level: "INFO"
+  file: "./logs/local_test.log"
+  console: true
+  include_timestamps: true
+  track_costs: false                  # No costs with local models
+
+# Human-in-the-Loop Configuration
+hil:
+  enabled: false                      # Disable for automated testing
+  auto_approve: false
+  checkpoints:
+    trend_review:
+      enabled: true
+      timeout: 300
+    research_review:
+      enabled: true
+      timeout: 600
+    report_review:
+      enabled: true
+      timeout: 0
+  allow_editing: true
+  allow_regeneration: true
+  save_checkpoints: true
+  checkpoint_file: "./data/hil_checkpoints_local.json"
+
+# API Server (disabled for local)
+api:
+  enabled: false
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["*"]

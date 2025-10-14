@@ -105,6 +105,43 @@ PERPLEXITY_API_KEY=pplx-...
 OLLAMA_BASE_URL=http://localhost:11434
 ```
 
+##  Local Mode - Run Without API Keys
+
+Cardinal Biggles can run entirely locally using Ollama - no API keys or cloud services required!
+
+### Quick Local Setup
+
+```bash
+# 1. Install and start Ollama (from ollama.com)
+ollama serve
+
+# 2. Pull required model (one-time setup)
+ollama pull llama3.1:8b
+
+# 3. Run local research
+python -m cli.main research "Your Topic" --config config/local_ollama.yaml --no-hil
+```
+
+**Benefits:**
+- No API costs
+- Privacy - all data stays local
+- Works offline (after model download)
+- No API key management
+
+**Setup Scripts:**
+```bash
+# Windows
+scripts\setup_local_models.bat
+scripts\smoke_test_local.bat
+
+# Linux/macOS
+chmod +x scripts/setup_local_models.sh scripts/smoke_test_local.sh
+./scripts/setup_local_models.sh
+./scripts/smoke_test_local.sh
+```
+
+For detailed setup instructions, see [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)
+
 ## Basic Usage
 
 ```bash
@@ -403,7 +440,16 @@ cardinal-biggles/
 ├── cli/
 │   └── main.py                 # CLI interface
 ├── config/
-│   └── config.yaml             # Main configuration
+│   ├── config.yaml             # Main configuration
+│   └── local_ollama.yaml       # Local-only configuration
+├── scripts/
+│   ├── setup_local_models.sh   # Ollama model setup (Linux/Mac)
+│   ├── setup_local_models.bat  # Ollama model setup (Windows)
+│   ├── smoke_test_local.sh     # Local smoke test (Linux/Mac)
+│   └── smoke_test_local.bat    # Local smoke test (Windows)
+├── docs/
+│   ├── LOCAL_SETUP.md          # Detailed local setup guide
+│   └── ARCHITECTURE.md         # Architecture documentation
 ├── tests/
 │   ├── test_agents.py
 │   ├── test_llm_factory.py

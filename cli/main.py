@@ -27,7 +27,7 @@ def research(topic, config, output, provider, model, hil, auto_approve):
     """Start a research workflow on a topic"""
 
     console.print(Panel.fit(
-        f"[bold blue]🔬 Multi-Agent Research Orchestrator[/bold blue]\n"
+        f"[bold blue]Multi-Agent Research Orchestrator[/bold blue]\n"
         f"Topic: [green]{topic}[/green]",
         border_style="blue"
     ))

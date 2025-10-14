@@ -1,0 +1,19 @@
+2025-10-14 11:40:53,359 - core.orchestrator - INFO - Research Orchestrator initialized
+2025-10-14 11:40:53,361 - core.orchestrator - INFO - Agent Configurations:
+2025-10-14 11:40:53,361 - core.orchestrator - INFO -   trend_scout: ChatOllama
+2025-10-14 11:40:53,361 - core.orchestrator - INFO -   historian: ChatOllama
+2025-10-14 11:40:53,361 - core.orchestrator - INFO -   scholar: ChatOllama
+2025-10-14 11:40:53,361 - core.orchestrator - INFO -   journalist: ChatOllama
+2025-10-14 11:40:53,361 - core.orchestrator - INFO -   bibliophile: ChatOllama
+2025-10-14 11:40:53,361 - core.orchestrator - INFO -   reporter: ChatOllama
+2025-10-14 11:40:53,373 - core.orchestrator - INFO - Starting research workflow for topic: Machine Learning
+2025-10-14 11:42:28,775 - core.orchestrator - INFO - Research Orchestrator initialized
+2025-10-14 11:42:28,776 - core.orchestrator - INFO - Agent Configurations:
+2025-10-14 11:42:28,776 - core.orchestrator - INFO -   trend_scout: ChatOllama
+2025-10-14 11:42:28,776 - core.orchestrator - INFO -   historian: ChatOllama
+2025-10-14 11:42:28,776 - core.orchestrator - INFO -   scholar: ChatOllama
+2025-10-14 11:42:28,776 - core.orchestrator - INFO -   journalist: ChatOllama
+2025-10-14 11:42:28,776 - core.orchestrator - INFO -   bibliophile: ChatOllama
+2025-10-14 11:42:28,776 - core.orchestrator - INFO -   reporter: ChatOllama
+2025-10-14 11:42:28,779 - core.orchestrator - INFO - Starting research workflow for topic: Machine Learning
+2025-10-14 11:43:27,013 - httpx - INFO - HTTP Request: POST http://localhost:11434/api/chat "HTTP/1.1 200 OK"

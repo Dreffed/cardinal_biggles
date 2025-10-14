@@ -52,7 +52,7 @@ class ResearchOrchestrator:
     def _initialize_agents(self) -> Dict:
         """Initialize all agents with their configured LLM providers"""
 
-        print("\n🤖 Initializing Research Agents...\n")
+        print("\nInitializing Research Agents...\n")
 
         agents = {}
 
@@ -113,7 +113,7 @@ class ResearchOrchestrator:
             hil_controller=self.hil_controller
         )
 
-        print("\n✓ All agents initialized successfully\n")
+        print("\nAll agents initialized successfully\n")
 
         return agents
 
