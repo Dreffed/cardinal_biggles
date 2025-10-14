@@ -128,7 +128,7 @@ def research(topic, config, output, provider, model, hil, auto_approve):
     # Save report
     output.write_text(results["final_report"])
 
-    console.print(f"\n[bold green]✓ Research Complete![/bold green]")
+    console.print(f"\n[bold green]Research Complete![/bold green]")
     console.print(f"Report saved to: [cyan]{output.absolute()}[/cyan]\n")
 
     # Display summary stats
