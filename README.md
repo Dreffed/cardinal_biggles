@@ -44,6 +44,50 @@ graph TB
 - **Flexible Configuration**: Per-agent provider and model selection
 - **Cost Optimization**: Use free local models where appropriate, paid APIs where needed
 
+## 📚 Documentation
+
+Complete documentation is available in the `docs/` directory:
+
+- **[User Manual](docs/USER_MANUAL.md)** - Comprehensive guide for using Cardinal Biggles (2000+ lines)
+  - Installation and setup
+  - Configuration guide
+  - All CLI commands
+  - Troubleshooting and FAQ
+
+- **[Local Setup Guide](docs/LOCAL_SETUP.md)** - Running without API keys using Ollama
+  - Step-by-step Ollama installation
+  - Model setup and optimization
+  - Performance benchmarks
+  - Troubleshooting local mode
+
+- **[Documentation Index](docs/README.md)** - Navigate all documentation
+  - Quick links to common tasks
+  - Documentation by user type
+  - Search documentation by topic
+
+- **[Architecture Guide](docs/ARCHITECTURE.md)** - System design and internals
+  - Component architecture
+  - Agent communication patterns
+  - Workflow diagrams
+
+- **[Development Guide](CLAUDE.md)** - For contributors and developers
+  - Code structure and patterns
+  - Adding custom agents
+  - Testing guidelines
+  - Development workflow
+
+### Quick Links
+
+| Task | Documentation |
+|------|---------------|
+| Install Cardinal Biggles | [User Manual §5](docs/USER_MANUAL.md#5-installation) |
+| Run first research | [User Manual §6](docs/USER_MANUAL.md#6-first-research-project) |
+| Use local mode (no API keys) | [Local Setup Guide](docs/LOCAL_SETUP.md) |
+| Configure providers | [User Manual §13](docs/USER_MANUAL.md#13-llm-provider-configuration) |
+| Human-in-the-Loop mode | [User Manual §23](docs/USER_MANUAL.md#23-human-in-the-loop-mode) |
+| Troubleshoot issues | [User Manual Part 6](docs/USER_MANUAL.md#part-6-troubleshooting) |
+| Add custom agents | [Development Guide](CLAUDE.md#adding-custom-agents) |
+
 ## 🏗️ Architecture
 
 ```text
@@ -448,8 +492,10 @@ cardinal-biggles/
 │   ├── smoke_test_local.sh     # Local smoke test (Linux/Mac)
 │   └── smoke_test_local.bat    # Local smoke test (Windows)
 ├── docs/
-│   ├── LOCAL_SETUP.md          # Detailed local setup guide
-│   └── ARCHITECTURE.md         # Architecture documentation
+│   ├── README.md                # Documentation index
+│   ├── USER_MANUAL.md           # Complete user guide (2000+ lines)
+│   ├── LOCAL_SETUP.md           # Detailed local setup guide
+│   └── ARCHITECTURE.md          # Architecture documentation
 ├── tests/
 │   ├── test_agents.py
 │   ├── test_llm_factory.py

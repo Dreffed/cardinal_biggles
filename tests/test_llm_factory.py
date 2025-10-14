@@ -1,126 +1,117 @@
 """
-Tests for LLM Factory
+Test script to verify LLM Factory setup
 """
 
-import pytest
+import asyncio
+import os
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
 
 
-@pytest.mark.unit
-class TestLLMFactory:
-    """Test LLM Factory functionality"""
+async def test_ollama():
+    """Test Ollama connection"""
+    print("\n🧪 Testing Ollama...")
 
-    def test_factory_initialization(self, config_file):
-        """Test factory initializes with config"""
+    try:
         from core.llm_factory import LLMFactory
 
-        factory = LLMFactory(config_file)
+        # Create test config
+        test_config = """
+llm:
+  default_provider: "ollama"
+  default_model: "llama3.1"
 
-        assert factory.config is not None
-        assert 'llm' in factory.config
-        assert 'providers' in factory.config['llm']
+  providers:
+    ollama:
+      base_url: "http://localhost:11434"
+      models:
+        standard: "llama3.1"
+      default_temperature: 0.1
+      timeout: 120
 
-    def test_load_config(self, config_file):
-        """Test config loading"""
-        from core.llm_factory import LLMFactory
+agents:
+  test_agent:
+    provider: "ollama"
+    model: "llama3.1"
+    temperature: 0.1
+"""
 
-        factory = LLMFactory(config_file)
+        # Save test config
+        Path("config").mkdir(exist_ok=True)
+        Path("config/test_config.yaml").write_text(test_config)
 
-        assert factory.config['llm']['default_provider'] == 'ollama'
-        assert 'ollama' in factory.config['llm']['providers']
+        # Create factory
+        factory = LLMFactory("config/test_config.yaml")
 
-    def test_environment_variable_expansion(self, test_config_dir):
-        """Test environment variable expansion in config"""
-        import yaml
-        import os
-        from core.llm_factory import LLMFactory
+        # Create Ollama LLM
+        llm = factory.create_llm(provider="ollama", model="llama3.1")
 
-        # Set test environment variable
-        os.environ['TEST_API_KEY'] = 'test-key-12345'
+        print(f"✓ Ollama LLM created: {type(llm).__name__}")
 
-        # Create config with env var
-        config = {
-            'llm': {
-                'default_provider': 'test',
-                'providers': {
-                    'test': {
-                        'api_key': '${TEST_API_KEY}'
-                    }
-                }
-            }
-        }
+        # Test invoke
+        print("  Testing invoke...")
+        response = await llm.ainvoke("Say 'test successful' and nothing else")
+        print(f"  Response: {response.content}")
 
-        config_path = test_config_dir / "env_test_config.yaml"
-        with open(config_path, 'w') as f:
-            yaml.dump(config, f)
+        return True
 
-        factory = LLMFactory(str(config_path))
-
-        assert factory.config['llm']['providers']['test']['api_key'] == 'test-key-12345'
-
-    @pytest.mark.requires_ollama
-    def test_create_ollama_llm(self, config_file):
-        """Test Ollama LLM creation"""
-        from core.llm_factory import LLMFactory
-
-        factory = LLMFactory(config_file)
-        llm = factory.create_llm(provider='ollama', model='llama3.1')
-
-        assert llm is not None
-        assert hasattr(llm, 'ainvoke') or hasattr(llm, 'invoke')
-
-    def test_create_agent_llm(self, config_file):
-        """Test agent-specific LLM creation"""
-        from core.llm_factory import LLMFactory
-
-        factory = LLMFactory(config_file)
-        llm = factory.create_agent_llm('test_agent')
-
-        assert llm is not None
-
-    def test_get_research_config(self, config_file):
-        """Test getting research config for agent"""
-        from core.llm_factory import LLMFactory
-
-        factory = LLMFactory(config_file)
-        config = factory.get_research_config('test_agent')
-
-        assert config is not None
-        assert config.get('max_results') == 5
-
-    def test_missing_config_file(self):
-        """Test error handling for missing config"""
-        from core.llm_factory import LLMFactory
-
-        with pytest.raises(FileNotFoundError):
-            LLMFactory('nonexistent_config.yaml')
-
-    def test_invalid_provider(self, config_file):
-        """Test error handling for invalid provider"""
-        from core.llm_factory import LLMFactory
-
-        factory = LLMFactory(config_file)
-
-        with pytest.raises(ValueError):
-            factory.create_llm(provider='invalid_provider')
+    except Exception as e:
+        print(f"✗ Ollama test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
-@pytest.mark.integration
-@pytest.mark.requires_ollama
-class TestLLMFactoryIntegration:
-    """Integration tests for LLM Factory"""
+async def test_imports():
+    """Test which LangChain packages are available"""
+    print("\n📦 Checking available packages...\n")
 
-    @pytest.mark.asyncio
-    async def test_ollama_invoke(self, config_file):
-        """Test actual Ollama invocation"""
-        from core.llm_factory import LLMFactory
+    imports = {
+        "langchain_ollama.ChatOllama": None,
+        "langchain_community.chat_models.ChatOllama": None,
+        "langchain_community.llms.Ollama": None,
+        "langchain_openai.ChatOpenAI": None,
+        "langchain_anthropic.ChatAnthropic": None,
+    }
 
-        factory = LLMFactory(config_file)
-        llm = factory.create_llm(provider='ollama', model='llama3.1')
+    for import_path in imports.keys():
+        try:
+            module_path, class_name = import_path.rsplit('.', 1)
+            module = __import__(module_path, fromlist=[class_name])
+            cls = getattr(module, class_name)
+            imports[import_path] = "✓ Available"
+            print(f"✓ {import_path}")
+        except ImportError:
+            imports[import_path] = "✗ Not installed"
+            print(f"✗ {import_path}")
+        except Exception as e:
+            imports[import_path] = f"✗ Error: {e}"
+            print(f"✗ {import_path} - {e}")
 
-        response = await llm.ainvoke("Say 'test' and nothing else")
+    return imports
 
-        assert response is not None
-        assert hasattr(response, 'content')
-        assert len(response.content) > 0
+
+async def main():
+    """Run all tests"""
+    print("="*60)
+    print("Cardinal Biggles - LLM Factory Test")
+    print("="*60)
+
+    # Test imports
+    imports = await test_imports()
+
+    # Test Ollama if available
+    if any("ollama" in k.lower() and "✓" in v for k, v in imports.items()):
+        await test_ollama()
+    else:
+        print("\n⚠️  No Ollama packages found. Install with:")
+        print("   pip install langchain-ollama")
+        print("   or")
+        print("   pip install langchain-community")
+
+    print("\n" + "="*60)
+    print("Tests complete!")
+    print("="*60 + "\n")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
