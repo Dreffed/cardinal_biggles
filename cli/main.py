@@ -112,24 +112,18 @@ def research(topic, config, output, provider, model, hil, auto_approve):
         console.print("[yellow]Partial results were saved to knowledge store.[/yellow]")
         return
 
-    # Determine output path
-    if output is None:
-        output_config = orchestrator.llm_factory.get_output_config()
-        output_dir = Path(output_config['output_directory'])
-        output_dir.mkdir(parents=True, exist_ok=True)
+    # Legacy single-file output support
+    if output is not None:
+        output_path = Path(output)
+        output_path.write_text(results["final_report"])
+        console.print(f"\n[bold green]Research Complete![/bold green]")
+        console.print(f"Report saved to: [cyan]{output_path.absolute()}[/cyan]\n")
 
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        topic_slug = topic.replace(" ", "_").lower()[:50]
-        output = output_dir / f"{topic_slug}_report_{timestamp}.md"
-    else:
-        output = Path(output)
+    console.print(f"\n[bold green]Research Complete![/bold green]\n")
 
-    # Save report
-    output.write_text(results["final_report"])
-
-    console.print(f"\n[bold green]Research Complete![/bold green]")
-    console.print(f"Report saved to: [cyan]{output.absolute()}[/cyan]\n")
+    # Display output locations from adapters
+    if 'output_locations' in results:
+        _display_output_locations(results['output_locations'])
 
     # Display summary stats
     _display_summary(results)
@@ -237,6 +231,23 @@ def _display_config(config_path: str, detailed: bool = False):
     console.print(table)
     console.print()
 
+def _display_output_locations(output_locations: list):
+    """Display output locations"""
+    console.print("[bold cyan]Output Locations:[/bold cyan]")
+
+    table = Table()
+    table.add_column("Format", style="cyan")
+    table.add_column("Status", style="green")
+    table.add_column("Location", style="yellow")
+
+    for output in output_locations:
+        status = "✓" if output['status'] == 'success' else "✗"
+        location = output.get('location', output.get('error', 'N/A'))
+        table.add_row(output['format'], status, location)
+
+    console.print(table)
+    console.print()
+
 def _display_summary(results: Dict):
     """Display research summary statistics"""
     table = Table(title="Research Summary")
@@ -245,13 +256,14 @@ def _display_summary(results: Dict):
     table.add_column("Sources Found", style="yellow")
 
     for phase_name, phase_data in results.items():
-        if phase_name != "final_report":
-            urls = phase_data.get("urls", [])
-            table.add_row(
-                phase_name.replace("_", " ").title(),
-                "✓ Complete",
-                str(len(urls))
-            )
+        if phase_name not in ["final_report", "output_locations", "hil_summary", "status"]:
+            if isinstance(phase_data, dict):
+                urls = phase_data.get("urls", [])
+                table.add_row(
+                    phase_name.replace("_", " ").title(),
+                    "✓ Complete",
+                    str(len(urls))
+                )
 
     console.print(table)
 
@@ -374,10 +386,44 @@ research:
 
 # Output Configuration
 output:
-  default_format: "markdown"
+  # Output formats to use (can enable multiple)
+  formats:
+    - markdown
+
+  # Default single-file output directory (legacy)
+  output_directory: "./reports"
   include_reference_tables: true
   save_intermediate_results: true
-  output_directory: "./reports"
+
+  # Markdown/Obsidian Configuration
+  markdown:
+    enabled: true
+    output_directory: "./reports"
+
+    # Obsidian-specific features
+    obsidian:
+      enabled: true
+      vault_path: null              # Set to your Obsidian vault path
+      use_wikilinks: true
+      use_tags: true
+      use_frontmatter: true
+      use_callouts: true
+      create_moc: true              # Create Map of Content index
+      moc_filename: "index.md"
+
+    # Folder structure
+    structure:
+      create_topic_folder: true
+      timestamp_folders: true
+      save_agent_outputs: true
+      save_artifacts: true
+      save_raw_data: true
+
+    # Export options
+    export_options:
+      include_metadata: true
+      include_timestamps: true
+      create_attachments_folder: true
 
 # Logging
 logging:
