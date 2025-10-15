@@ -1,0 +1,20 @@
+# Ignore generated files
+reports/
+logs/
+*.log
+
+# Ignore node_modules if we add JS tooling
+node_modules/
+
+# Ignore virtual environments
+venv/
+env/
+ENV/
+
+# Ignore build artifacts
+build/
+dist/
+*.egg-info/
+
+# Ignore specific files
+CHANGELOG.md
