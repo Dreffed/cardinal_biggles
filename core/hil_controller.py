@@ -10,6 +10,10 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 from rich.table import Table
 import json
+import tempfile
+import subprocess
+import os
+import platform
 
 
 class CheckpointType(Enum):
@@ -33,16 +37,18 @@ class HILController:
     Controls human-in-the-loop workflow with approval checkpoints
     """
 
-    def __init__(self, enable_hil: bool = True, auto_approve: bool = False):
+    def __init__(self, enable_hil: bool = True, auto_approve: bool = False, config: Optional[Dict] = None):
         """
         Initialize HIL controller
 
         Args:
             enable_hil: Enable human-in-the-loop mode
             auto_approve: Auto-approve all checkpoints (for testing)
+            config: Optional configuration dict for editor settings
         """
         self.enable_hil = enable_hil
         self.auto_approve = auto_approve
+        self.config = config or {}
         self.console = Console()
         self.checkpoint_history: List[Dict] = []
 
@@ -233,19 +239,117 @@ class HILController:
         """Allow user to edit data"""
 
         self.console.print("\n[bold]Edit Mode[/bold]")
+
+        # Display editing instructions
+        self.console.print("\n[dim]Editing Options:[/dim]")
+        self.console.print("[dim]  - note-only: Add a simple note to the data[/dim]")
+        self.console.print("[dim]  - json: Full JSON editing in system editor[/dim]")
+        self.console.print("[dim]  - yaml: Full YAML editing in system editor[/dim]")
+
+        # Get editor from config or environment
+        editor = self._get_editor()
+        if not editor and os.environ.get('EDITOR'):
+            self.console.print(f"[dim]  - System editor: {os.environ.get('EDITOR')}[/dim]")
+
+        # Ask user for edit format preference
+        format_choice = Prompt.ask(
+            "Edit format",
+            choices=["note-only", "json", "yaml"],
+            default="note-only"
+        )
+
+        if format_choice == "note-only":
+            # Simple note editing (existing behavior)
+            if Confirm.ask("Add a note to the data?", default=True):
+                note = Prompt.ask("Enter note")
+                data["user_note"] = note
+            return data
+
+        # Full editing
         self.console.print("[yellow]Opening editor for data modification...[/yellow]")
+        self.console.print("[dim]Save and close the editor to continue[/dim]")
 
-        # For now, just return original data
-        # In full implementation, open editor or provide line-by-line editing
-        self.console.print("[yellow]Note: Full editing not yet implemented[/yellow]")
+        # Create temporary file
+        suffix = '.json' if format_choice == 'json' else '.yaml'
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode='w',
+                suffix=suffix,
+                delete=False,
+                encoding='utf-8'
+            ) as tmp_file:
+                tmp_path = tmp_file.name
 
-        if Confirm.ask("Keep original data?", default=True):
-            return data
-        else:
-            # Minimal edit: let user add a note
-            note = Prompt.ask("Add a note to the data")
-            data["user_note"] = note
-            return data
+                # Write data to temp file
+                if format_choice == 'json':
+                    json.dump(data, tmp_file, indent=2)
+                else:
+                    import yaml
+                    yaml.dump(data, tmp_file, default_flow_style=False)
+
+            # Open editor
+            try:
+                subprocess.run([editor, tmp_path], check=True)
+            except subprocess.CalledProcessError:
+                self.console.print("[red]Editor failed to open[/red]")
+                return data
+            except FileNotFoundError:
+                self.console.print(f"[red]Editor '{editor}' not found[/red]")
+                self.console.print("[yellow]Set EDITOR environment variable or configure in settings[/yellow]")
+                self.console.print("[dim]Example: export EDITOR=nano[/dim]")
+                return data
+
+            # Read edited data
+            try:
+                with open(tmp_path, 'r', encoding='utf-8') as f:
+                    if format_choice == 'json':
+                        edited_data = json.load(f)
+                    else:
+                        import yaml
+                        edited_data = yaml.safe_load(f)
+
+                # Validate edited data
+                if not isinstance(edited_data, dict):
+                    self.console.print("[red]Invalid data format (must be a dictionary). Changes discarded.[/red]")
+                    return data
+
+                self.console.print("[green]✓ Data edited successfully[/green]")
+                return edited_data
+
+            except (json.JSONDecodeError, Exception) as e:
+                self.console.print(f"[red]Parse error: {e}[/red]")
+                self.console.print("[yellow]Changes discarded[/yellow]")
+                return data
+
+        finally:
+            # Clean up temp file
+            try:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except Exception:
+                pass
+
+        return data
+
+    def _get_editor(self) -> str:
+        """Get system text editor"""
+        # Priority: config > environment > default
+        editor = self.config.get('editor')
+
+        if not editor:
+            editor = os.environ.get('EDITOR') or os.environ.get('VISUAL')
+
+        if not editor:
+            # Platform-specific defaults
+            system = platform.system()
+            if system == 'Windows':
+                editor = 'notepad.exe'
+            elif system == 'Darwin':  # macOS
+                editor = 'nano'
+            else:  # Linux
+                editor = 'nano'
+
+        return editor
 
     def _get_timestamp(self) -> str:
         """Get current timestamp"""
@@ -270,5 +374,6 @@ def create_hil_controller(config: Dict[str, Any]) -> HILController:
 
     return HILController(
         enable_hil=hil_config.get("enabled", False),
-        auto_approve=hil_config.get("auto_approve", False)
+        auto_approve=hil_config.get("auto_approve", False),
+        config=hil_config
     )

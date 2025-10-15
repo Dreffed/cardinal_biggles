@@ -260,15 +260,243 @@ class ResearchOrchestrator:
         return agent_outputs
 
     def _extract_artifacts(self, results: Dict) -> Dict:
-        """Extract artifacts from results (placeholder for future enhancement)"""
+        """Extract artifacts from results"""
         artifacts = {
-            'trends': [],
-            'papers': [],
-            'articles': [],
-            'books': []
+            'trends': self._parse_trends(results.get('trends', {})),
+            'papers': self._parse_papers(results.get('white_papers', {})),
+            'articles': self._parse_articles(results.get('news', {})),
+            'books': self._parse_books(results.get('books', {}))
         }
-        # TODO: Parse actual artifacts from results
         return artifacts
+
+    def _parse_trends(self, trend_results: Dict) -> List[Dict]:
+        """Parse trends from TrendScoutAgent results"""
+        import re
+
+        trends = []
+        result_text = trend_results.get('result', '')
+        urls = trend_results.get('urls', [])
+
+        if not result_text:
+            return trends
+
+        # Split by trend sections - look for patterns like "Trend Name:" or numbered trends
+        trend_blocks = re.split(r'\n(?=(?:Trend\s+(?:Name|#?\d+)[:\s])|(?:\d+\.\s+\*\*[A-Z]))', result_text)
+
+        for idx, block in enumerate(trend_blocks):
+            if not block.strip():
+                continue
+
+            trend = {}
+
+            # Try multiple patterns for trend extraction
+            # Pattern 1: "Trend Name: ..." format
+            name_match = re.search(r'Trend\s+Name:\s*(.+?)(?:\n|$)', block, re.IGNORECASE)
+            if not name_match:
+                # Pattern 2: "1. **Trend Name**" format
+                name_match = re.search(r'^\d+\.\s+\*\*([^*]+)\*\*', block)
+            if not name_match:
+                # Pattern 3: "Trend #1:" format
+                name_match = re.search(r'Trend\s+#?\d+:\s*(.+?)(?:\n|$)', block, re.IGNORECASE)
+
+            if name_match:
+                trend['title'] = name_match.group(1).strip()
+
+                # Extract additional fields if available
+                category_match = re.search(r'Category:\s*(.+?)(?:\n|$)', block, re.IGNORECASE)
+                if category_match:
+                    trend['category'] = category_match.group(1).strip()
+
+                impact_match = re.search(r'Impact\s+Score:\s*(\d+)', block, re.IGNORECASE)
+                if impact_match:
+                    trend['impact_score'] = int(impact_match.group(1))
+
+                adoption_match = re.search(r'Adoption\s+Phase:\s*(.+?)(?:\n|$)', block, re.IGNORECASE)
+                if adoption_match:
+                    trend['adoption_phase'] = adoption_match.group(1).strip()
+
+                # Store full content
+                trend['content'] = block.strip()
+
+                # Try to match URLs (simple heuristic: match if trend title words appear in URL)
+                if 'title' in trend and urls:
+                    title_words = [w.lower() for w in trend['title'].split() if len(w) > 3]
+                    for url in urls[:10]:  # Check first 10 URLs
+                        url_lower = url.lower()
+                        if any(word in url_lower for word in title_words):
+                            trend['url'] = url
+                            break
+
+                trends.append(trend)
+
+        return trends
+
+    def _parse_papers(self, scholar_results: Dict) -> List[Dict]:
+        """Parse papers from ScholarAgent results"""
+        import re
+
+        papers = []
+        result_text = scholar_results.get('result', '')
+        urls = scholar_results.get('urls', [])
+
+        if not result_text:
+            return papers
+
+        # Look for various citation patterns
+        # Pattern 1: "Title" by Authors (Year)
+        pattern1 = r'"([^"]+)"\s+by\s+([^(]+)\s+\((\d{4})\)'
+        for match in re.finditer(pattern1, result_text):
+            paper = {
+                'title': match.group(1).strip(),
+                'authors': match.group(2).strip(),
+                'year': match.group(3),
+                'content': match.group(0)
+            }
+            self._match_url_to_artifact(paper, urls)
+            papers.append(paper)
+
+        # Pattern 2: **Paper Title** - Authors, Journal/Conference
+        pattern2 = r'\*\*([^*]+)\*\*\s*[-–]\s*([^,\n]+)(?:,\s*([^,\n]+))?'
+        for match in re.finditer(pattern2, result_text):
+            if not any(p['title'] == match.group(1).strip() for p in papers):  # Avoid duplicates
+                paper = {
+                    'title': match.group(1).strip(),
+                    'authors': match.group(2).strip() if match.group(2) else '',
+                    'journal': match.group(3).strip() if match.group(3) else '',
+                    'content': match.group(0)
+                }
+                self._match_url_to_artifact(paper, urls)
+                papers.append(paper)
+
+        # Pattern 3: Paper: Title (fallback for simpler formats)
+        pattern3 = r'Paper:\s+([^,\n]+)'
+        for match in re.finditer(pattern3, result_text):
+            title = match.group(1).strip()
+            if not any(p['title'] == title for p in papers):  # Avoid duplicates
+                paper = {
+                    'title': title,
+                    'content': match.group(0)
+                }
+                self._match_url_to_artifact(paper, urls)
+                papers.append(paper)
+
+        return papers
+
+    def _parse_articles(self, journalist_results: Dict) -> List[Dict]:
+        """Parse articles from JournalistAgent results"""
+        import re
+
+        articles = []
+        result_text = journalist_results.get('result', '')
+        urls = journalist_results.get('urls', [])
+
+        if not result_text:
+            return articles
+
+        # Pattern 1: Article: "Title" from Source
+        pattern1 = r'Article:\s+"([^"]+)"(?:\s+from\s+([^,\n]+))?'
+        for match in re.finditer(pattern1, result_text):
+            article = {
+                'title': match.group(1).strip(),
+                'source': match.group(2).strip() if match.group(2) else '',
+                'content': match.group(0)
+            }
+            self._match_url_to_artifact(article, urls)
+            articles.append(article)
+
+        # Pattern 2: **Article Title** - Source
+        pattern2 = r'\*\*([^*]+)\*\*\s*[-–]\s*([^,\n]+)'
+        for match in re.finditer(pattern2, result_text):
+            title = match.group(1).strip()
+            if not any(a['title'] == title for a in articles):  # Avoid duplicates
+                article = {
+                    'title': title,
+                    'source': match.group(2).strip(),
+                    'content': match.group(0)
+                }
+                self._match_url_to_artifact(article, urls)
+                articles.append(article)
+
+        # Pattern 3: Numbered list of articles "1. Title..."
+        pattern3 = r'^\d+\.\s+([^:\n]+):?\s*([^\n]+)?'
+        for match in re.finditer(pattern3, result_text, re.MULTILINE):
+            title = match.group(1).strip()
+            # Filter out section headers
+            if len(title) > 10 and not title.endswith(':') and not any(a['title'] == title for a in articles):
+                article = {
+                    'title': title,
+                    'summary': match.group(2).strip() if match.group(2) else '',
+                    'content': match.group(0)
+                }
+                self._match_url_to_artifact(article, urls)
+                articles.append(article)
+
+        return articles
+
+    def _parse_books(self, bibliophile_results: Dict) -> List[Dict]:
+        """Parse books from BibliophileAgent results"""
+        import re
+
+        books = []
+        result_text = bibliophile_results.get('result', '')
+        urls = bibliophile_results.get('urls', [])
+
+        if not result_text:
+            return books
+
+        # Pattern 1: "Book Title" by Author
+        pattern1 = r'"([^"]+)"\s+by\s+([^,\n]+)'
+        for match in re.finditer(pattern1, result_text):
+            book = {
+                'title': match.group(1).strip(),
+                'author': match.group(2).strip(),
+                'content': match.group(0)
+            }
+            self._match_url_to_artifact(book, urls)
+            books.append(book)
+
+        # Pattern 2: **Book Title** - Author
+        pattern2 = r'\*\*([^*]+)\*\*\s*[-–]\s*([^,\n]+)'
+        for match in re.finditer(pattern2, result_text):
+            title = match.group(1).strip()
+            if not any(b['title'] == title for b in books):  # Avoid duplicates
+                book = {
+                    'title': title,
+                    'author': match.group(2).strip(),
+                    'content': match.group(0)
+                }
+                self._match_url_to_artifact(book, urls)
+                books.append(book)
+
+        # Pattern 3: Book: Title
+        pattern3 = r'Book:\s+([^,\n]+)'
+        for match in re.finditer(pattern3, result_text):
+            title = match.group(1).strip()
+            if not any(b['title'] == title for b in books):  # Avoid duplicates
+                book = {
+                    'title': title,
+                    'content': match.group(0)
+                }
+                self._match_url_to_artifact(book, urls)
+                books.append(book)
+
+        return books
+
+    def _match_url_to_artifact(self, artifact: Dict, urls: List[str]) -> None:
+        """Helper method to match URLs to artifacts based on title keywords"""
+        if 'title' not in artifact or not urls:
+            return
+
+        # Extract significant words from title (>3 chars)
+        title_words = [w.lower() for w in artifact['title'].split() if len(w) > 3]
+
+        # Try to find a matching URL
+        for url in urls:
+            url_lower = url.lower()
+            # Check if any title words appear in the URL
+            if any(word in url_lower for word in title_words[:3]):  # Check first 3 significant words
+                artifact['url'] = url
+                return
 
     def _extract_raw_data(self, results: Dict) -> Dict:
         """Extract raw data for reproducibility"""
